@@ -1,8 +1,10 @@
 #include <Arduino.h>
 #include <WiFi.h>
+#include <SPIFFS.h>
 
 #include <LiquidCrystal_I2C.h>
-#include <esp32DHT.h>
+#include <DHT.h>
+#include <ESPAsyncWebServer.h>
 
 #ifdef AP_SECURITY
   #define AP_PASSW "123!@#"
@@ -13,6 +15,9 @@
 #define PIN_LCD_1 13
 #define PIN_LCD_2 12
 #define PIN_LCD_3 14
+
+#define DHT11_PIN 32
+#define DHTTYPE DHT11
 
 #define PIN_SOIL_1 27
 #define PIN_SOIL_2 26
@@ -53,6 +58,10 @@ struct device
   int value;
 } typedef device;
 
+DHT dht(DHT11_PIN, DHTTYPE);
+
+//ESP SERVER
+AsyncWebServer server(80);
 
 device* temp_sensors = new device[TEMP_SENSORS];
 device* soil_sensors = new device[SOIL_SENSORS];
@@ -67,6 +76,12 @@ void ChangeReleState(int id, int state);
 void printStatus();
 
 void setup() {
+
+  if(!SPIFFS.begin()){
+    Serial.println("An Error has occurred while mounting SPIFFS");
+    return;
+  }
+
   WiFi.disconnect();
   WiFi.mode(WIFI_AP);
   #ifdef AP_SECURITY
@@ -87,6 +102,33 @@ void setup() {
     soil_sensors[i].type = device_type::sensor;
     soil_sensors[i].value = 0;
   }
+
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest* req){
+    req->send(SPIFFS, "/index.html");
+  });
+
+  server.on("/status", HTTP_GET, [](AsyncWebServerRequest* req){
+    float temp_cel = dht.readTemperature();
+    float humidity = dht.readHumidity();
+    if(isnan(temp_cel))
+    {
+      temp_cel = -1;
+    }
+    if(isnan(humidity))
+    {
+      humidity = -1;
+    }
+    String body = "{\n\"Temp\":" + String(temp_cel) + ",\n\"humidity\":"+String(humidity)+",\n\"soil\":" + String(soil_value) + ",\n\"rele01\":" + String(rele01.value) +",\n\"rele02\":"+ String(rele02.value) +"\n}";
+    req->send(200, "application/json", body);
+  });
+
+  server.on("/setpoint", HTTP_POST, [](AsyncWebServerRequest* req){
+    String data = String(TEMP_TARGET);
+    if(req->hasParam("setpoint"))
+        data = req->getParam("setpoint")->value();
+    req->send(200);
+  });
+  server.begin();
 }
 
 void loop() {

@@ -29,10 +29,6 @@ namespace devices_types{
             device(int type=0, int value=0);
             device(int type=0);
             ~device() = default;
-
-            
-
-
             
     };
 
