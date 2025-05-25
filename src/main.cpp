@@ -1,6 +1,9 @@
 #include <Arduino.h>
 #include <WiFi.h>
 
+#include <LiquidCrystal_I2C.h>
+#include <esp32DHT.h>
+
 #ifdef AP_SECURITY
   #define AP_PASSW "123!@#"
 #endif
@@ -48,11 +51,11 @@ struct device
   int type;
   int id;
   int value;
-} typedef sensor;
+} typedef device;
 
 
-sensor* temp_sensors = new sensor[TEMP_SENSORS];
-sensor* soil_sensors = new sensor[SOIL_SENSORS];
+device* temp_sensors = new device[TEMP_SENSORS];
+device* soil_sensors = new device[SOIL_SENSORS];
 
 device rele01 = {device_type::rele, 0, RELESTATE::OFF};
 device rele02 = {device_type::rele, 1, RELESTATE::OFF};
@@ -62,8 +65,6 @@ int temp_value;
 
 void ChangeReleState(int id, int state);
 void printStatus();
-
-
 
 void setup() {
   WiFi.disconnect();
