@@ -153,3 +153,16 @@ void loop() {
   printStatus();
 }
 
+void ChangeReleState(int id, int status)
+{
+  if(id == 0)
+  {
+    rele01.value = status;
+    digitalWrite(PIN_RELE_1, status);
+  }else if (id == 1)
+  {
+    rele02.value = status;
+    digitalWrite(PIN_RELE_2, status);
+  }
+}
+
