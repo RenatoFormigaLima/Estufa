@@ -166,3 +166,8 @@ void ChangeReleState(int id, int status)
   }
 }
 
+void printStatus()
+{
+
+}
+
