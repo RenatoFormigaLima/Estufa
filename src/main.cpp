@@ -12,9 +12,9 @@
 
 #define AP_NAME "ESTUFA-ESP32"
 
-#define PIN_LCD_1 13
-#define PIN_LCD_2 12
-#define PIN_LCD_3 14
+#define PIN_LCD_ADDR 13
+#define PIN_LCD_SDA 12
+#define PIN_LCD_SCL 14
 
 #define DHT11_PIN 32
 #define DHTTYPE DHT11
@@ -36,6 +36,9 @@
 #define TEMP_SENSORS 1
 #define TEMP_TARGET 30
 #define TEMP_HIGH TEMP_TARGET*1.3
+
+#define lcdColumns 16
+#define lcdRows 1
 
 
 enum RELESTATE
@@ -70,12 +73,29 @@ device rele01 = {device_type::rele, 0, RELESTATE::OFF};
 device rele02 = {device_type::rele, 1, RELESTATE::OFF};
 
 int soil_value;
-int temp_value;
+float temp_value;
+float air_humidity;
 
 void ChangeReleState(int id, int state);
 void printStatus();
 
 void setup() {
+
+  for(int i = 0; i < TEMP_SENSORS; i++){
+    temp_sensors[i].id = i;
+    temp_sensors[i].type = device_type::sensor;
+    temp_sensors[i].value = 0;
+  }
+  for(int i = 0; i < SOIL_SENSORS; i++){
+    soil_sensors[i].id = i;
+    soil_sensors[i].type = device_type::sensor;
+    soil_sensors[i].value = 0;
+  }
+
+  LCDI2C_init(PIN_LCD_ADDR, lcdColumns, lcdRows, PIN_LCD_SDA, PIN_LCD_SCL);
+
+  Serial.begin(115200);
+  Serial.setTimeout(10000);
 
   if(!SPIFFS.begin()){
     Serial.println("An Error has occurred while mounting SPIFFS");
@@ -91,17 +111,6 @@ void setup() {
   #endif
   if(!WiFi.begin())
     esp_restart();
-
-  for(int i = 0; i < TEMP_SENSORS; i++){
-    temp_sensors[i].id = i;
-    temp_sensors[i].type = device_type::sensor;
-    temp_sensors[i].value = 0;
-  }
-  for(int i = 0; i < SOIL_SENSORS; i++){
-    soil_sensors[i].id = i;
-    soil_sensors[i].type = device_type::sensor;
-    soil_sensors[i].value = 0;
-  }
 
   server.on("/", HTTP_GET, [](AsyncWebServerRequest* req){
     req->send(SPIFFS, "/index.html");
@@ -129,9 +138,14 @@ void setup() {
     req->send(200);
   });
   server.begin();
+
+  
 }
 
 void loop() {
+
+  temp_value = dht.readTemperature();
+  air_humidity = dht.readHumidity();
   
   if(soil_value <= SOIL_HIGH && soil_value >= SOIL_TARGET)
   {
@@ -168,6 +182,12 @@ void ChangeReleState(int id, int status)
 
 void printStatus()
 {
-
-}
+  String message = "T:" + String(temp_value) + " S:" + String(soil_value)+ "%";
+  LCDI2C_print((char*)message.c_str());
+  delay(200);
+  LCDI2C_clear();
+  message = "R1:" + String(rele01.value) + " R2:" + String(rele02.value);
+  LCDI2C_print((char*)message.c_str());
+  delay(200);
+} 
 
